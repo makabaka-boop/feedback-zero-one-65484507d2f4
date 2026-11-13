@@ -6,14 +6,15 @@ from typing import Any, Dict, List, Sequence, Tuple
 
 from .endpoints import AlgEP, Endpoint, RationalEP
 from .probability import ConfidenceResult, invert_confidence
-from .regions import INF, Interval, compute_region
 from .rational import rational_to_string
+from .regions import INF, Interval, compute_region
 from .segmentation import (
     Contrast,
     best_segmentation,
     build_contrast,
     parametric_cost_coefficients,
 )
+from .trend import TrendResult, run_trend_inference
 
 
 @dataclass(frozen=True)
@@ -88,3 +89,46 @@ def serialize_result(result: InferenceResult) -> Dict[str, Any]:
         "p": result.confidence.p_value,
         "theta": result.confidence.theta_intervals,
     }
+
+
+def rational_output(value: Fraction) -> Any:
+    """Render an exact rational in input order: integer or reduced ``p/q``."""
+    if value.denominator == 1:
+        return value.numerator
+    return rational_to_string(value)
+
+
+def serialize_trend_result(result: TrendResult) -> Dict[str, Any]:
+    """Serialize a ``mode=trend`` result.
+
+    An empty knot set returns only ``S`` and ``status``; otherwise the
+    segmented-job keys are reused and the reduced rational ``fit`` array is
+    appended in input order.
+    """
+    if not result.changed:
+        return {"S": [], "status": "no_change"}
+    return {
+        "S": list(result.knots),
+        "V": serialize_intervals(result.intervals),
+        "p": result.confidence.p_value,
+        "theta": result.confidence.theta_intervals,
+        "fit": [rational_output(value) for value in result.fit],
+    }
+
+
+def run_job(job) -> Any:
+    """Dispatch a validated job request to the matching inference pipeline."""
+    if job.mode == "segment":
+        return run_inference(
+            job.y, job.k, job.s2, job.mu0, job.alpha
+        )
+    return run_trend_inference(
+        job.y, job.penalty, job.s2, job.mu0, job.alpha
+    )
+
+
+def serialize_job_result(result: Any) -> Dict[str, Any]:
+    """Serialize either pipeline's result to the JSON payload."""
+    if isinstance(result, TrendResult):
+        return serialize_trend_result(result)
+    return serialize_result(result)

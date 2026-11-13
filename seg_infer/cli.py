@@ -15,9 +15,9 @@ import sys
 import tempfile
 from typing import Any, Dict
 
-from .engine import run_inference, serialize_result
+from .engine import run_job, serialize_job_result
 from .errors import InputError
-from .input_parsing import load_document, parse_input
+from .input_parsing import load_document, parse_job
 
 
 def _atomic_write_json(path: str, payload: Dict[str, Any]) -> None:
@@ -41,7 +41,8 @@ def _atomic_write_json(path: str, payload: Dict[str, Any]) -> None:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
-        description="Exact segmented-normal inference backend"
+        description="Exact segmented-normal inference backend "
+        "(segmentation and trend modes)"
     )
     parser.add_argument("input", help="path to the input JSON document")
     parser.add_argument("output", help="path to the output JSON document")
@@ -49,9 +50,9 @@ def main(argv=None) -> int:
 
     try:
         document = load_document(args.input)
-        y, k, s2, mu0, alpha = parse_input(document)
-        result = run_inference(y, k, s2, mu0, alpha)
-        payload = serialize_result(result)
+        job = parse_job(document)
+        result = run_job(job)
+        payload = serialize_job_result(result)
     except InputError as exc:
         print(f"input error {exc}", file=sys.stderr)
         return 2

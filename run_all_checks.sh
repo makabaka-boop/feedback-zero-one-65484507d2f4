@@ -5,3 +5,4 @@ cd "$(dirname "$0")"
 python3 -I tests/test_acceptance.py
 python3 -I tests/test_exactness.py
 python3 -I tests/test_stress_fast.py
+python3 -I tests/test_trend.py
