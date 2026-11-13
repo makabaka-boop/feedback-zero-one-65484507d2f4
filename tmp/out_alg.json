@@ -1,0 +1,35 @@
+{
+  "S": [
+    1,
+    2,
+    4
+  ],
+  "V": [
+    {
+      "lower": null,
+      "upper": {
+        "poly": [
+          1,
+          0,
+          -12
+        ],
+        "root_index": 0
+      },
+      "upper_open": true
+    },
+    {
+      "lower": {
+        "rational": "25/2"
+      },
+      "upper": null,
+      "lower_open": false
+    }
+  ],
+  "p": 0.13666405163770223,
+  "theta": [
+    [
+      -3.059366199770311,
+      4.944268326165274
+    ]
+  ]
+}

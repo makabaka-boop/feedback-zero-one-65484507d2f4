@@ -1,0 +1,28 @@
+{
+  "S": [
+    1
+  ],
+  "V": [
+    {
+      "lower": null,
+      "upper": {
+        "rational": "-1/2"
+      },
+      "upper_open": false
+    },
+    {
+      "lower": {
+        "rational": "3/2"
+      },
+      "upper": null,
+      "lower_open": false
+    }
+  ],
+  "p": 0.4883391341856589,
+  "theta": [
+    [
+      -1.0820591888549704,
+      2.082059188854969
+    ]
+  ]
+}

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seg-infer"
+version = "1.0.0"
+description = "Exact piecewise-constant segmentation and stability-region inference"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+seg-infer = "seg_infer.cli:main"
+
+[tool.setuptools]
+packages = ["seg_infer"]
