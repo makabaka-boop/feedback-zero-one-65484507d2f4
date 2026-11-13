@@ -17,7 +17,7 @@ from typing import Any, Dict
 
 from .engine import run_inference, serialize_result
 from .errors import InputError
-from .input_parsing import load_document, parse_input
+from .input_parsing import load_document, parse_input_full
 
 
 def _atomic_write_json(path: str, payload: Dict[str, Any]) -> None:
@@ -49,8 +49,8 @@ def main(argv=None) -> int:
 
     try:
         document = load_document(args.input)
-        y, k, s2, mu0, alpha = parse_input(document)
-        result = run_inference(y, k, s2, mu0, alpha)
+        y, k, s2, mu0, alpha, mode = parse_input_full(document)
+        result = run_inference(y, k, s2, mu0, alpha, mode)
         payload = serialize_result(result)
     except InputError as exc:
         print(f"input error {exc}", file=sys.stderr)

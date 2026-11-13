@@ -126,9 +126,11 @@ class InfeasibleRegionError(RuntimeError):
 def polynomial_roots(poly: IntPoly) -> List[Endpoint]:
     """Return the distinct real roots of a degree-one or degree-two polynomial.
 
-    A double root is returned once: the quadratic is non-negative everywhere
-    and zero only there, so the root is a closed boundary whose two adjacent
-    cells are both feasible.
+    A double root is returned once: the quadratic has one sign everywhere
+    except at the root itself, which is therefore a closed boundary whose two
+    adjacent cells share the same feasibility status.  Quadratics with a
+    negative leading coefficient (used by the ordered PAVA pipeline) are
+    supported as well.
     """
     a, b, c = poly
     if a == 0:
@@ -136,7 +138,7 @@ def polynomial_roots(poly: IntPoly) -> List[Endpoint]:
         return [RationalEP(Fraction(-c, b))]
     disc = b * b - 4 * a * c
     if disc < 0:
-        return []  # strictly positive everywhere, no boundary
+        return []  # one sign everywhere, no boundary
     root_base = isqrt(disc)
     if root_base * root_base == disc:
         if disc == 0:
@@ -145,7 +147,10 @@ def polynomial_roots(poly: IntPoly) -> List[Endpoint]:
             RationalEP(Fraction(-b - root_base, 2 * a)),
             RationalEP(Fraction(-b + root_base, 2 * a)),
         ]
-    return [make_alg_endpoint(poly, 0), make_alg_endpoint(poly, 1)]
+    return [
+        make_alg_endpoint(poly, 0, allow_negative=True),
+        make_alg_endpoint(poly, 1, allow_negative=True),
+    ]
 
 
 def _deduplicate(endpoints: List[Endpoint]) -> List[Endpoint]:

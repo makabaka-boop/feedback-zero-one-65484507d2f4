@@ -72,15 +72,24 @@ def _discriminant(poly: IntPoly) -> int:
     return b * b - 4 * a * c
 
 
-def make_alg_endpoint(poly: IntPoly, index: int) -> AlgEP:
-    """Create an algebraic endpoint with a rational bracket around its root."""
+def make_alg_endpoint(poly: IntPoly, index: int, allow_negative: bool = False) -> AlgEP:
+    """Create an algebraic endpoint with a rational bracket around its root.
+
+    By default the primitive polynomial is expected to have a positive leading
+    coefficient (the convention used by the unconstrained pipeline).  Setting
+    ``allow_negative`` admits quadratics with a negative leading coefficient,
+    which arise as ordered (PAVA) cost differences; the root indexing still
+    orders roots ascending, only the bracket sign logic is generalized.
+    """
     a, b, c = poly
     disc = _discriminant(poly)
     if disc <= 0:
         raise ValueError("algebraic endpoint requires a positive discriminant")
     if isqrt(disc) ** 2 == disc:
         raise ValueError("rational roots must not be stored as algebraic endpoints")
-    # Roots are (-b +/- sqrt(disc)) / (2a), a > 0.
+    if not allow_negative and a <= 0:
+        raise ValueError("quadratic leading coefficient must be positive")
+    # Roots are (-b +/- sqrt(disc)) / (2a), a != 0.
     root_sq = Fraction(disc, 4 * a * a)
     sqrt_lo, sqrt_hi = _sqrt_bracket(root_sq)
     center = Fraction(-b, 2 * a)
@@ -92,6 +101,8 @@ def make_alg_endpoint(poly: IntPoly, index: int) -> AlgEP:
         hi = center + sqrt_hi
     else:  # pragma: no cover - defensive
         raise ValueError("quadratic root index must be 0 or 1")
+    if lo > hi:  # a < 0 flips the bracket orientation
+        lo, hi = hi, lo
     return AlgEP(poly, index, lo, hi)
 
 
@@ -117,13 +128,22 @@ def refine(endpoint: AlgEP) -> AlgEP:
     a, b, c = endpoint.poly
     mid = (endpoint.lo + endpoint.hi) / 2
     value = a * mid * mid + b * mid + c
-    # a > 0: polynomial is negative strictly between its two roots.
-    if endpoint.index == 0:
-        # On the smaller root the sign changes from positive to negative.
-        if value > 0:
+    if a > 0:
+        # a > 0: polynomial is negative strictly between its two roots.
+        if endpoint.index == 0:
+            # On the smaller root the sign changes from positive to negative.
+            if value > 0:
+                return AlgEP(endpoint.poly, endpoint.index, mid, endpoint.hi)
+            return AlgEP(endpoint.poly, endpoint.index, endpoint.lo, mid)
+        if value < 0:
             return AlgEP(endpoint.poly, endpoint.index, mid, endpoint.hi)
         return AlgEP(endpoint.poly, endpoint.index, endpoint.lo, mid)
-    if value < 0:
+    # a < 0: the sign pattern is the mirror image of the a > 0 case.
+    if endpoint.index == 0:
+        if value < 0:
+            return AlgEP(endpoint.poly, endpoint.index, mid, endpoint.hi)
+        return AlgEP(endpoint.poly, endpoint.index, endpoint.lo, mid)
+    if value > 0:
         return AlgEP(endpoint.poly, endpoint.index, mid, endpoint.hi)
     return AlgEP(endpoint.poly, endpoint.index, endpoint.lo, mid)
 

@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .endpoints import AlgEP, Endpoint, RationalEP
+from .ordered import best_ordered_segmentation, fit_values
+from .ordered_region import compute_ordered_region
 from .probability import ConfidenceResult, invert_confidence
 from .regions import INF, Interval, compute_region
 from .rational import rational_to_string
@@ -22,12 +24,23 @@ class InferenceResult:
     intervals: List[Interval]
     confidence: ConfidenceResult
     contrast: Contrast
+    fit: Optional[Tuple[Fraction, ...]] = None
 
 
 def run_inference(
-    y: Sequence[Fraction], k: int, s2: Fraction, mu0: Fraction, alpha: Fraction
+    y: Sequence[Fraction],
+    k: int,
+    s2: Fraction,
+    mu0: Fraction,
+    alpha: Fraction,
+    mode: str = "default",
 ) -> InferenceResult:
     """Execute the complete backend inference with exact arithmetic."""
+    if mode == "ordered":
+        return _run_ordered(y, k, s2, mu0, alpha)
+    if mode != "default":  # pragma: no cover - rejected at the parsing layer
+        raise ValueError(f"unsupported mode {mode!r}")
+
     cuts, candidates = best_segmentation(y, k)
     contrast = build_contrast(y, cuts, s2)
 
@@ -50,6 +63,30 @@ def run_inference(
         intervals, contrast.t, contrast.v, mu0, alpha
     )
     return InferenceResult(cuts, intervals, confidence, contrast)
+
+
+def _run_ordered(
+    y: Sequence[Fraction],
+    k: int,
+    s2: Fraction,
+    mu0: Fraction,
+    alpha: Fraction,
+) -> InferenceResult:
+    """Ordered (isotonic) variant: monotone segment levels and exact region."""
+    cuts, candidates = best_ordered_segmentation(y, k)
+    # eta is still built from the lengths of the first two selected segments,
+    # never from the fitted platforms; t, v and z come from the original y.
+    contrast = build_contrast(y, cuts, s2)
+    fit = fit_values(y, cuts)
+
+    intervals = compute_ordered_region(
+        candidates, cuts, contrast.z, contrast.eta, contrast.eta_norm_sq
+    )
+    confidence = invert_confidence(
+        intervals, contrast.t, contrast.v, mu0, alpha
+    )
+    return InferenceResult(cuts, intervals, confidence, contrast, fit)
+
 
 
 def serialize_endpoint(endpoint: Any) -> Any:
@@ -82,9 +119,12 @@ def serialize_intervals(intervals: Sequence[Interval]) -> List[Dict[str, Any]]:
 
 
 def serialize_result(result: InferenceResult) -> Dict[str, Any]:
-    return {
+    payload: Dict[str, Any] = {
         "S": list(result.cuts),
         "V": serialize_intervals(result.intervals),
         "p": result.confidence.p_value,
         "theta": result.confidence.theta_intervals,
     }
+    if result.fit is not None:
+        payload["fit"] = [rational_to_string(value) for value in result.fit]
+    return payload

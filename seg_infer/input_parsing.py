@@ -8,6 +8,8 @@ from .errors import InputError
 from .rational import parse_rational
 
 _REQUIRED = ("y", "k", "s2", "mu0", "alpha")
+_OPTIONAL = ("mode",)
+_VALID_MODES = ("ordered",)
 
 
 class _RejectingObject(dict):
@@ -41,17 +43,36 @@ def parse_input(document: Any) -> Tuple[List[Fraction], int, Fraction, Fraction,
     """Validate the top-level structure and every scalar field.
 
     Returns ``(y, k, s2, mu0, alpha)`` with all quantities exact rationals
-    (``k`` is a genuine Python int, never a bool).
+    (``k`` is a genuine Python int, never a bool).  The optional ``mode``
+    member is still validated; use :func:`parse_input_full` to obtain it.
     """
+    y, k, s2, mu0, alpha, _mode = parse_input_full(document)
+    return y, k, s2, mu0, alpha
+
+
+def parse_input_full(
+    document: Any,
+) -> Tuple[List[Fraction], int, Fraction, Fraction, Fraction, str]:
+    """Like :func:`parse_input`, additionally returning the validated mode."""
     if not isinstance(document, dict):
         raise InputError("$", "top-level value must be a JSON object")
 
     for key in _REQUIRED:
         if key not in document:
             raise InputError(f"$.{key}", "missing required member")
-    unknown = sorted(set(document) - set(_REQUIRED))
+    unknown = sorted(set(document) - set(_REQUIRED) - set(_OPTIONAL))
     if unknown:
         raise InputError(f"$.{unknown[0]}", "unknown member")
+
+    mode = "default"
+    if "mode" in document:
+        raw_mode = document["mode"]
+        if not isinstance(raw_mode, str) or raw_mode not in _VALID_MODES:
+            raise InputError(
+                "$.mode",
+                "must be the string 'ordered' when present",
+            )
+        mode = raw_mode
 
     raw_y = document["y"]
     if not isinstance(raw_y, list):
@@ -80,4 +101,4 @@ def parse_input(document: Any) -> Tuple[List[Fraction], int, Fraction, Fraction,
     if not 0 < alpha < 1:
         raise InputError("$.alpha", "must satisfy 0 < alpha < 1")
 
-    return y, k, s2, mu0, alpha
+    return y, k, s2, mu0, alpha, mode
